@@ -190,6 +190,10 @@ func link_parameter(widget_name : String, target_generator : MMGenBase, target_p
 	generator.link_parameter(widget_name, target_generator, target_parameter)
 	undo_redo_register_change("Change parameter name", old_state)
 
+func unlink_parameter(widget_name : String, target_generator : MMGenBase, target_parameter : String) -> void:
+	generator.unlink_parameter(widget_name, target_generator, target_parameter)
+	undo_redo_register_change("Change parameter name", old_state)
+	
 func _on_AddLink_pressed() -> void:
 	old_state = generator.serialize().duplicate(true)
 	var control = generator.create_linked_control("Unnamed")
@@ -215,10 +219,13 @@ func _on_AddNamed_pressed():
 	undo_redo_register_change("Add named parameter", old_state)
 
 func _on_Link_pressed(param_name) -> void:
+	var request_remove = Input.is_key_pressed(KEY_CTRL)
+	
 	var link = MMNodeLink.new(get_parent())
+	print("_on_Link_pressed(%s)" % param_name)
 	if controls.has(param_name):
 		old_state = generator.serialize().duplicate(true)
-		link.pick(controls[param_name], self, param_name)
+		link.pick(controls[param_name], self, param_name, false, request_remove)
 
 func _on_Edit_pressed(param_name) -> void:
 	for p in generator.get_parameter_defs():
@@ -268,5 +275,3 @@ func on_exit_widget(widget) -> void:
 		for l in links[widget]:
 			l.queue_free()
 		links.erase(widget)
-
-

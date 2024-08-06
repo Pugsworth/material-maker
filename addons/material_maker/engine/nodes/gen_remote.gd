@@ -247,6 +247,18 @@ func can_link_parameter(widget_name : String, generator : MMGenBase, param : Str
 						return false
 	return true
 
+func can_unlink_parameter(widget_name : String, generator : MMGenBase, param : String):
+	if generator == self:
+		return false;
+	
+	var widget : Dictionary = get_widget(widget_name)
+	if !widget.linked_widgets.is_empty():
+		for lw in widget.linked_widgets:
+			if lw.node == generator.name and lw.widget == param:
+				return true
+	
+	return false
+
 func link_parameter(widget_name : String, generator : MMGenBase, param : String) -> void:
 	if !can_link_parameter(widget_name, generator, param):
 		return
@@ -259,6 +271,20 @@ func link_parameter(widget_name : String, generator : MMGenBase, param : String)
 			"config_control":
 				parameters[widget_name] = 0
 	emit_signal("parameter_changed", "__update_all__", null)
+	
+func unlink_parameter(widget_name : String, generator : MMGenBase, param : String) -> void:
+	var widget : Dictionary = get_widget(widget_name)
+	
+	var found_idx = -1
+	for i in widget.linked_widgets.size():
+		var linked_widget = widget.linked_widgets[i]
+		if linked_widget.node == generator.name and linked_widget.widget == param:
+			found_idx = i
+			break
+	
+	if found_idx != -1:
+		widget.linked_widgets.remove_at(found_idx)
+		emit_signal("parameter_changed", "__update_all__", null)
 
 func move_parameter(widget_name : String, offset : int) -> void:
 	for i in range(widgets.size()):

@@ -8,6 +8,7 @@ var target = null
 var node = null
 var param_name : String = ""
 var creating : bool = false
+var removing : bool = false
 
 func _init(parent) -> void:
 	size_flags_horizontal = SIZE_EXPAND_FILL
@@ -16,12 +17,13 @@ func _init(parent) -> void:
 	clip_contents = true
 	parent.add_child(self)
 
-func pick(s, n, pn : String, c : bool = false) -> void:
+func pick(s, n, pn : String, c : bool = false, to_remove : bool = false) -> void:
 	source = s
 	end = source.get_global_transform() * 0.5*source.size * get_global_transform()
 	node = n
 	param_name = pn
 	creating = c
+	removing = to_remove
 	set_process_input(true)
 
 func show_link(s, t) -> void:
@@ -51,7 +53,10 @@ func _draw() -> void:
 	var color = Color(1, 0.5, 0.5, 0.5)
 	var rect
 	if target != null:
-		color = Color(0.5, 1, 0.5, 0.5)
+		if removing:
+			color = Color(1.0, 0.7, 0.0)
+		else:
+			color = Color(0.5, 1, 0.5, 0.5)
 		rect = target.get_global_transform() * Rect2(Vector2(0, 0), target.size) * get_global_transform()
 		draw_rect(rect, color, false, 2)
 		end = closest(rect, start)
@@ -64,21 +69,39 @@ func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
 		set_process_input(false)
 		queue_free()
-		node.generator.remove_parameter(param_name)
+		# Check for any linked widgets before trying to destroy the entire parameter
+		var widget : Dictionary = node.generator.get_widget(param_name)
+		if widget.linked_widgets.size() == 0:
+			node.generator.remove_parameter(param_name) # This is a problem for adding links. I think it was intended to remove parameters that were created with linking.
+		
 		get_viewport().set_input_as_handled()
 		return
 	elif event is InputEventMouseMotion:
 		var mouse_global_position = get_global_mouse_position()
 		var control = find_control(mouse_global_position)
 		end = mouse_global_position * get_global_transform()
-		target = control.widget if control != null and !control.is_empty() and node.generator.can_link_parameter(param_name, control.node.generator, control.widget.name) else null
+		if control != null and !control.is_empty():
+			if removing and node.generator.can_unlink_parameter(param_name, control.node.generator, control.widget.name):
+				target = control.widget
+			elif !removing and node.generator.can_link_parameter(param_name, control.node.generator, control.widget.name):
+				target = control.widget
+			else:
+				target = null
+				
+		# target = control.widget if control != null and !control.is_empty() and node.generator.can_link_parameter(param_name, control.node.generator, control.widget.name) else null
 		get_viewport().set_input_as_handled()
 	elif event is InputEventMouseButton:
 		if event.pressed:
 			if event.button_index == MOUSE_BUTTON_LEFT:
 				var control = find_control(get_global_mouse_position())
 				if !control.is_empty():
-					node.link_parameter(param_name, control.node.generator, control.widget.name)
+					if removing:
+						print(node)
+						print(typeof(node))
+						node.unlink_parameter(param_name, control.node.generator, control.widget.name)
+					else:
+						node.link_parameter(param_name, control.node.generator, control.widget.name)
+						
 				elif creating:
 					node.generator.remove_parameter(param_name)
 				set_process_input(false)
